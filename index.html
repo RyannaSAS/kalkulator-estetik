@@ -228,8 +228,8 @@
     </div>
 
     <div class="display">
-      <div class="history">128 × 4 +</div>
-      <div class="result">512</div>
+      <div class="history"></div>
+      <div class="result">0</div>
     </div>
 
     <div class="keys">
@@ -260,5 +260,151 @@
 
     <p class="footer">✿ made with love ✿</p>
   </main>
+
+  <script>
+    const historyEl = document.querySelector(".display .history");
+    const resultEl = document.querySelector(".display .result");
+    const keys = document.querySelector(".keys");
+
+    // Angka disimpan dengan titik (format JS), ditampilkan dengan koma
+    let current = "0";       // angka yang sedang diketik / ditampilkan
+    let previous = null;     // angka sebelum operator
+    let operator = null;     // "+", "−", "×", "÷"
+    let startNew = false;    // true = ketikan berikutnya mengganti angka
+    let history = "";
+
+    const toDisplay = (str) => str.replace(".", ",");
+
+    function format(num) {
+      if (!isFinite(num)) return "Error";
+      // Bulatkan untuk menghindari 0.1 + 0.2 = 0.30000000000000004
+      return String(parseFloat(num.toPrecision(12)));
+    }
+
+    function compute(a, b, op) {
+      switch (op) {
+        case "+": return a + b;
+        case "−": return a - b;
+        case "×": return a * b;
+        case "÷": return b === 0 ? NaN : a / b;
+      }
+      return b;
+    }
+
+    function render() {
+      const text = toDisplay(current);
+      resultEl.textContent = text;
+      historyEl.textContent = history;
+      // Kecilkan font jika angkanya panjang
+      resultEl.style.fontSize = text.length > 12 ? "1.6rem" : text.length > 9 ? "2rem" : "";
+    }
+
+    function clearAll() {
+      current = "0";
+      previous = null;
+      operator = null;
+      startNew = false;
+      history = "";
+    }
+
+    function inputDigit(d) {
+      if (current === "Error" || startNew) {
+        current = d;
+        startNew = false;
+      } else if (current.replace(/[-.]/g, "").length < 15) {
+        current = current === "0" ? d : current === "-0" ? "-" + d : current + d;
+      }
+    }
+
+    function inputDecimal() {
+      if (current === "Error" || startNew) {
+        current = "0.";
+        startNew = false;
+      } else if (!current.includes(".")) {
+        current += ".";
+      }
+    }
+
+    function chooseOperator(op) {
+      if (current === "Error") return;
+      const value = parseFloat(current);
+      if (operator && !startNew) {
+        current = format(compute(previous, value, operator));
+        if (current === "Error") {
+          previous = null;
+          operator = null;
+          history = "";
+          startNew = true;
+          return;
+        }
+      }
+      previous = parseFloat(current);
+      operator = op;
+      history = `${toDisplay(current)} ${op}`;
+      startNew = true;
+    }
+
+    function equals() {
+      if (!operator || current === "Error") return;
+      const value = parseFloat(current);
+      history = `${toDisplay(format(previous))} ${operator} ${toDisplay(format(value))} =`;
+      current = format(compute(previous, value, operator));
+      previous = null;
+      operator = null;
+      startNew = true;
+    }
+
+    function toggleSign() {
+      if (current === "Error") return;
+      current = current.startsWith("-") ? current.slice(1) : "-" + current;
+      startNew = false;
+    }
+
+    function percent() {
+      if (current === "Error") return;
+      current = format(parseFloat(current) / 100);
+      startNew = false;
+    }
+
+    function press(key) {
+      if (/^\d$/.test(key)) inputDigit(key);
+      else if (key === ",") inputDecimal();
+      else if (["+", "−", "×", "÷"].includes(key)) chooseOperator(key);
+      else if (key === "=") equals();
+      else if (key === "AC") clearAll();
+      else if (key === "±") toggleSign();
+      else if (key === "%") percent();
+      render();
+    }
+
+    keys.addEventListener("click", (e) => {
+      const btn = e.target.closest(".key");
+      if (btn) press(btn.textContent.trim());
+    });
+
+    // Dukungan keyboard
+    const keyMap = {
+      "+": "+", "-": "−", "*": "×", "x": "×", "/": "÷",
+      "Enter": "=", "=": "=", ",": ",", ".": ",",
+      "Escape": "AC", "Delete": "AC", "%": "%"
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (/^\d$/.test(e.key)) {
+        press(e.key);
+      } else if (e.key === "Backspace") {
+        if (!startNew && current !== "Error") {
+          current = current.slice(0, -1);
+          if (current === "" || current === "-") current = "0";
+          render();
+        }
+      } else if (keyMap[e.key]) {
+        e.preventDefault();
+        press(keyMap[e.key]);
+      }
+    });
+
+    render();
+  </script>
 </body>
 </html>
